@@ -98,6 +98,8 @@ setrules(){ #自定义规则
 	echo -e " 0 返回上级菜单"
 	read -p "请输入对应数字 > " num
 	case $num in
+	0)
+	;;
 	1)
 		rule_type="DOMAIN-SUFFIX DOMAIN-KEYWORD IP-CIDR SRC-IP-CIDR DST-PORT SRC-PORT GEOIP GEOSITE IP-CIDR6 DOMAIN"
 		rule_group="DIRECT#REJECT$(cat $YAMLSDIR/proxy-groups.yaml $YAMLSDIR/config.yaml 2>/dev/null | grep -Ev '^#' | grep -o '\- name:.*' | sed 's/- name: /#/g' | tr -d '\n')"
@@ -208,6 +210,8 @@ EOF
 	echo -e " 0 返回上级菜单"
 	read -p "请输入对应数字 > " num
 	case $num in
+	0)
+	;;
 	1)
 		group_type="select url-test fallback load-balance"
 		group_type_cn="手动选择 自动选择 故障转移 负载均衡"
@@ -284,6 +288,8 @@ setproxies(){ #自定义clash节点
 	echo -e " 0 返回上级菜单"
 	read -p "请输入对应数字 > " num
 	case $num in
+	0)
+	;;
 	1)
 		proxy_type="DOMAIN-SUFFIX DOMAIN-KEYWORD IP-CIDR SRC-IP-CIDR DST-PORT SRC-PORT GEOIP GEOSITE IP-CIDR6 DOMAIN MATCH"
 		proxy_group="$(cat $YAMLSDIR/proxy-groups.yaml $YAMLSDIR/config.yaml 2>/dev/null | sed "/#自定义策略组开始/,/#自定义策略组结束/d" | grep -Ev '^#' | grep -o '\- name:.*' | sed 's/#.*//' | sed 's/- name: /#/g' | tr -d '\n' | sed 's/#//')"
@@ -347,7 +353,7 @@ gen_clash_providers(){ #生成clash的providers配置文件
 		fi
 		cat >> $TMPDIR/providers/providers.yaml <<EOF
   ${1}:
-    type: http
+    type: $type
     url: "$download_url"
     path: "$path"
     interval: 43200
@@ -432,7 +438,7 @@ gen_singbox_providers(){ #生成singbox的providers配置文件
 			cat >> ${TMPDIR}/providers/providers.json <<EOF
 	{
       "tag": "${1}",
-      "type": "file",
+      "type": "local",
       "healthcheck_url": "https://www.gstatic.com/generate_204",
       "healthcheck_interval": "10m",
 	  "path": "${2}"
@@ -442,7 +448,7 @@ EOF
 			cat >> ${TMPDIR}/providers/providers.json <<EOF
 	{
       "tag": "${1}",
-      "type": "http",
+      "type": "remote",
       "healthcheck_url": "https://www.gstatic.com/generate_204",
       "healthcheck_interval": "10m",
       "download_url": "${2}",
@@ -743,6 +749,8 @@ override(){ #配置文件覆写
 	[ "$inuserguide" = 1 ] || echo -e " 0 返回上级菜单"
 	read -p "请输入对应数字 > " num
 	case "$num" in
+	0)
+	;;
 	1)
 		if [ -n "$(pidof CrashCore)" ];then
 			echo -----------------------------------------------
@@ -1025,6 +1033,8 @@ set_core_config(){ #配置文件功能
 	[ "$inuserguide" = 1 ] || echo -e " 0 返回上级菜单"
 	read -p "请输入对应数字 > " num
 	case "$num" in
+	0)
+	;;
 	1)
 		if [ -n "$Url" ];then
 			echo -----------------------------------------------
@@ -1483,6 +1493,8 @@ setcore(){ #内核选择菜单
 	echo 0 返回上级菜单 
 	read -p "请输入对应数字 > " num
 	case "$num" in
+	0)
+	;;
 	1)
 		crashcore=clash
 		custcorelink=''
@@ -1917,7 +1929,9 @@ getcrt(){ #下载根证书文件
 		error_down
 	else
 		echo -----------------------------------------------
-		mkdir -p $openssldir
+		[ "$systype" = 'mi_snapshot' ] && cp -f ${TMPDIR}/ca-certificates.crt $CRASHDIR/tools #镜像化设备特殊处理
+		[ -f $openssldir/certs ] && rm -rf $openssldir/certs #如果certs不是目录而是文件则删除并创建目录
+		mkdir -p $openssldir/certs
 		mv -f ${TMPDIR}/ca-certificates.crt $crtdir
 		${CRASHDIR}/start.sh webget /dev/null https://baidu.com echooff rediron skipceroff
 		if [ "$?" = "1" ];then
@@ -2231,12 +2245,11 @@ userguide(){
 				} && echo "已成功开启ipv4转发，如未正常开启，请手动重启设备！" || echo "开启失败！请自行谷歌查找当前设备的开启方法！"
 			fi
 		elif [ "$num" = 2 ];then
-			setconfig redir_mod "纯净模式"
+			setconfig redir_mod "Redir模式"
 			setconfig crashcore "clash"
 			setconfig common_ports "未开启"
-			echo -----------------------------------------------
-			echo -e "\033[36m请选择设置本机代理的方式\033[0m"
-			localproxy
+			setconfig firewall_area '2'
+			
 		elif [ "$num" = 3 ];then
 			mv -f $CFG_PATH.bak $CFG_PATH
 			echo -e "\033[32m脚本设置已还原！\033[0m"
