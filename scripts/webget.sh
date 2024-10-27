@@ -1021,7 +1021,7 @@ set_core_config(){ #配置文件功能
 	if [ -f "$CRASHDIR"/v2b_api.sh ];then
 		echo -e " 2 登录\033[33m获取订阅(推荐！)\033[0m"
 	else
-		echo -e " 2 在线\033[33m获取完配置文件\033[0m"
+		echo -e " 2 在线\033[33m获取完整配置文件\033[0m"
 	fi
 	echo -e " 3 本地\033[32m生成providers配置文件\033[0m"	
 	echo -e " 4 本地\033[33m上传完整配置文件\033[0m"
@@ -1480,11 +1480,11 @@ setcore(){ #内核选择菜单
 	echo -e " >>\033[32m$singbox_v  	\033[33m不支持providers\033[0m"
 	echo -e "  说明文档：	\033[36;4mhttps://sing-box.sagernet.org\033[0m"
 	echo -e "3 \033[43;30m  Meta  \033[0m：	\033[32m多功能，支持全面\033[0m"
-	echo -e " >>\033[32m$meta_v   	\033[33m内存占用较高\033[0m"
+	echo -e " >>\033[32m$meta_v   	\033[33m占用略高，GeoSite可能不兼容华硕固件\033[0m"
 	echo -e "  说明文档：	\033[36;4mhttps://wiki.metacubex.one\033[0m"
 	echo -e "4 \033[43;30m SingBoxP \033[0m：	\033[32m支持ssr、providers、dns并发……\033[0m"
 	echo -e " >>\033[32m$singboxp_v  \033[33mPuerNya分支版本\033[0m"
-	echo -e "  说明文档：	\033[36;4mhttps://sing-box.sagernet.org\033[0m"
+	echo -e "  说明文档：	\033[36;4mhttps://sing-boxp.dustinwin.top\033[0m"
 	echo -----------------------------------------------
 	echo -e "5 \033[36m自定义内核\033[0m	$custcore"
 	echo -----------------------------------------------
@@ -1506,6 +1506,10 @@ setcore(){ #内核选择菜单
 		getcore
 	;;
 	3)
+		[ -d "/jffs" ] && {
+			echo -e "\033[31mMeta内核使用的GeoSite.dat数据库在华硕设备存在被系统误删的问题，可能无法使用!\033[0m"
+			sleep 3
+		}
 		crashcore=meta
 		custcorelink=''
 		getcore
@@ -1943,10 +1947,13 @@ getcrt(){ #下载根证书文件
 	fi
 }
 setcrt(){
-	openssldir=$(openssl version -a 2>&1 | grep OPENSSLDIR | awk -F "\"" '{print $2}')
-	[ -z "$openssldir" ] && openssldir=/etc/ssl
+	openssldir="$(openssl version -d 2>&1 | awk -F '"' '{print $2}')"
+	if [ -d "$openssldir/certs/" ];then
+ 		crtdir="$openssldir/certs/ca-certificates.crt"
+   	else
+    		crtdir="/etc/ssl/certs/ca-certificates.crt"
+ 	fi
 	if [ -n "$openssldir" ];then
-		crtdir="$openssldir/certs/ca-certificates.crt"
 		echo -----------------------------------------------
 		echo -e "\033[36m安装/更新本地根证书文件(ca-certificates.crt)\033[0m"
 		echo -e "\033[33m用于解决证书校验错误，x509报错等问题\033[0m"
@@ -2273,8 +2280,8 @@ userguide(){
 		}
 	fi
 	#检测及下载根证书
-	openssldir=$(openssl version -a 2>&1 | grep OPENSSLDIR | awk -F "\"" '{print $2}')
-	[ -z "$openssldir" ] && openssldir=/etc/ssl
+	openssldir="$(openssl version -d 2>&1 | awk -F '"' '{print $2}')"
+	[ ! -d "$openssldir/certs" ] && openssldir=/etc/ssl
 	if [ -d $openssldir/certs -a ! -f $openssldir/certs/ca-certificates.crt ];then
 		echo -----------------------------------------------
 		echo -e "\033[33m当前设备未找到根证书文件\033[0m"
@@ -2472,7 +2479,7 @@ testcommand(){
 		if [ "$firewall_mod" = "nftables" ];then
 			nft list table inet shellcrash
 		else
-			[ "$firewall_area" = 1 -o "$firewall_area" = 3 -o "$firewall_area" = 5 ] && {
+			[ "$firewall_area" = 1 -o "$firewall_area" = 3 -o "$firewall_area" = 5 -o "$vm_redir" = "已开启" ] && {
 				echo ----------------Redir+DNS---------------------
 				iptables -t nat -L PREROUTING --line-numbers
 				iptables -t nat -L shellcrash_dns --line-numbers
@@ -2508,6 +2515,11 @@ testcommand(){
 						ip6tables -t mangle -L shellcrashv6_mark --line-numbers
 					}
 				}
+			}
+			[ "$vm_redir" = "已开启" ] && {
+						echo -------------vm-Redir-------------------
+						iptables -t nat -L shellcrash_vm --line-numbers
+						iptables -t nat -L shellcrash_vm_dns --line-numbers
 			}
 		fi
 		exit;
